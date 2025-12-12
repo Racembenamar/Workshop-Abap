@@ -1,0 +1,99 @@
+CLASS lhc_ZIW_Products DEFINITION INHERITING FROM cl_abap_behavior_handler.
+  PRIVATE SECTION.
+
+    METHODS get_global_authorizations FOR GLOBAL AUTHORIZATION
+      IMPORTING REQUEST requested_authorizations FOR ZIW_Products RESULT result.
+
+    METHODS setCurrency FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR ZIW_Products~setCurrency.
+
+    METHODS validatePrice FOR VALIDATE ON SAVE
+      IMPORTING keys FOR ZIW_Products~validatePrice.
+
+    METHODS applyDiscount FOR MODIFY
+      IMPORTING keys FOR ZIW_Products~applyDiscount RESULT result.
+
+    METHODS early_numbering_create FOR NUMBERING
+      IMPORTING entities FOR CREATE ZIW_Products.
+
+ENDCLASS.
+
+CLASS lhc_ZIW_Products IMPLEMENTATION.
+
+  METHOD get_global_authorizations.
+  ENDMETHOD.
+
+  METHOD setCurrency.
+    READ ENTITIES OF ZIW_Products IN LOCAL MODE
+      ENTITY ZIW_Products
+        FIELDS ( prd_currency ) WITH CORRESPONDING #( keys )
+      RESULT DATA(products).
+
+    DELETE products WHERE prd_currency IS NOT INITIAL.
+
+    CHECK products IS NOT INITIAL.
+
+    MODIFY ENTITIES OF ZIW_Products IN LOCAL MODE
+      ENTITY ZIW_Products
+        UPDATE
+        FIELDS ( prd_currency )
+        WITH VALUE #( FOR product IN products
+                      ( %tky = product-%tky
+                        prd_currency = 'EUR' ) ).
+  ENDMETHOD.
+
+  METHOD validatePrice.
+    READ ENTITIES OF ZIW_Products IN LOCAL MODE
+      ENTITY ZIW_Products
+        FIELDS ( prd_price ) WITH CORRESPONDING #( keys )
+      RESULT DATA(products).
+
+    LOOP AT products INTO DATA(product).
+      IF product-prd_price <= 0.
+        APPEND VALUE #( %tky = product-%tky ) TO failed-ziw_products.
+        APPEND VALUE #( %tky = product-%tky
+                        %msg = new_message_with_text(
+                                 severity = if_abap_behv_message=>severity-error
+                                 text     = 'Price must be greater than zero' )
+                      ) TO reported-ziw_products.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD applyDiscount.
+    READ ENTITIES OF ZIW_Products IN LOCAL MODE
+      ENTITY ZIW_Products
+        FIELDS ( prd_price ) WITH CORRESPONDING #( keys )
+      RESULT DATA(products).
+
+    LOOP AT products ASSIGNING FIELD-SYMBOL(<product>).
+      <product>-prd_price = <product>-prd_price * '0.90'.
+    ENDLOOP.
+
+    MODIFY ENTITIES OF ZIW_Products IN LOCAL MODE
+      ENTITY ZIW_Products
+        UPDATE FIELDS ( prd_price )
+        WITH VALUE #( FOR product IN products
+                      ( %tky = product-%tky
+                        prd_price = product-prd_price ) ).
+
+    result = VALUE #( FOR product IN products
+                      ( %tky   = product-%tky
+                        %param = product ) ).
+  ENDMETHOD.
+
+  METHOD early_numbering_create.
+    SELECT MAX( product_id ) FROM zproduct_demo INTO @DATA(max_id).
+    IF max_id IS INITIAL.
+      max_id = '100'.
+    ENDIF.
+
+    LOOP AT entities ASSIGNING FIELD-SYMBOL(<entity>).
+      max_id = max_id + 1.
+      APPEND VALUE #( %cid      = <entity>-%cid
+                      %is_draft = <entity>-%is_draft
+                      product_id = max_id ) TO mapped-ziw_products.
+    ENDLOOP.
+  ENDMETHOD.
+
+ENDCLASS.

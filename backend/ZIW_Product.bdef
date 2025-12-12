@@ -1,0 +1,32 @@
+managed implementation in class zbp_iw_products unique;
+strict ( 2 );
+with draft;
+
+define behavior for ZIW_Products
+persistent table zproduct_demo
+draft table zproducts_draft
+lock master total etag last_changed_at
+authorization master ( global )
+early numbering
+{
+  create ( authorization : global );
+  update;
+  delete;
+
+  action applyDiscount result [1] $self;
+
+  draft action Edit;
+  draft action Resume;
+  draft action Activate;
+  draft action Discard;
+
+  draft determine action Prepare {
+    validation validatePrice;
+  }
+
+  field ( readonly ) last_changed_at;
+  field ( readonly ) product_id;
+
+  validation validatePrice on save { field prd_price; create; update; }
+  determination setCurrency on modify { field prd_currency; create; }
+}

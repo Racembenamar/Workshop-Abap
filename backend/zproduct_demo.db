@@ -1,0 +1,18 @@
+@EndUserText.label : 'demo for foreign key'
+@AbapCatalog.enhancement.category : #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #RESTRICTED
+define table zproduct_demo {
+
+  key client      : abap.clnt not null;
+  key product_id  : zid_demo not null;
+  key cst_name    : zname_demo not null;
+  prd_name        : abap.char(30);
+  prd_cat         : abap.char(50);
+  @Semantics.amount.currencyCode : 'zproduct_demo.prd_currency'
+  prd_price       : abap.curr(5,2);
+  prd_currency    : abap.cuky;
+  last_changed_at : timestampl;
+
+}
